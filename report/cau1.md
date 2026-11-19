@@ -10,16 +10,28 @@ Chương trình kiểm tra dữ liệu thiếu và dòng trùng trước khi chi
 
 ## Hàm mất mát và gradient
 
-Mạng có hai tầng ẩn lần lượt 64 và 32 nơ-ron, dùng tanh, khởi tạo Xavier và bắt đầu với bias bằng 0. Tầng cuối cho đầu ra tuyến tính. Gọi $N$ là số mẫu Train, $B$ là kích thước thực tế của mini-batch và $L$ là chỉ số tầng ra. Ở tầng $\ell$, phép truyền xuôi là $Z^{(\ell)}=A^{(\ell-1)}W^{(\ell)}+b^{(\ell)}$. Với tầng ẩn, $A^{(\ell)}=\tanh Z^{(\ell)}$. Tầng ra trả về $\hat y=Z^{(L)}$.
+### Lan truyền tiến và hàm mục tiêu
+
+Mạng dùng tám đặc trưng đầu vào, hai tầng ẩn lần lượt 64 và 32 nơ-ron và đầu ra tuyến tính một chiều. Hai tầng ẩn dùng tanh. Trọng số được khởi tạo bằng Xavier và bias bắt đầu bằng 0. Gọi $N$ là số mẫu Train, $B$ là kích thước thực tế của mini-batch và $L$ là chỉ số tầng ra. Đặt $A^{(0)}=X$ cho ma trận đầu vào của batch. Ở tầng $\ell$, phép truyền xuôi là $Z^{(\ell)}=A^{(\ell-1)}W^{(\ell)}+b^{(\ell)}$. Với tầng ẩn, $A^{(\ell)}=\tanh Z^{(\ell)}$. Tầng ra trả về $\hat y=Z^{(L)}$.
 
 Hàm mục tiêu mà mỗi bước Gradient Descent dùng là **nửa MSE mini-batch cộng L2**.
 
 $$
-J_B = \underbrace{\frac{1}{2B}\sum_{i=1}^B (\hat y_i-y_i)^2}_{\frac12\operatorname{MSE}_B}
+J_B = \underbrace{\frac{1}{2B}\sum_{i=1}^B (\hat y_i-y_i)^2}_{J_{\mathrm{data}}=\frac12\operatorname{MSE}_B}
       + \frac{\lambda}{2N}\sum_{\ell=1}^{L}\lVert W^{(\ell)}\rVert_F^2.
 $$
 
+### Chứng minh gradient bằng quy tắc dây chuyền
+
 Đạo hàm của bình phương sai số đưa ra hệ số 2, triệt tiêu hệ số $1/2$. Tầng ra tuyến tính có đạo hàm bằng 1 nên $dZ^{(L)}=(\hat y-y)/B$. Với tầng ẩn, quy tắc dây chuyền nhân gradient truyền ngược với đạo hàm của tanh, phần tử theo phần tử.
+
+$$
+dZ^{(\ell)}_{ij} =
+\left(\sum_q dZ^{(\ell+1)}_{iq} W^{(\ell+1)}_{jq}\right)
+\left(1-(A^{(\ell)}_{ij})^2\right).
+$$
+
+Dạng ma trận của biểu thức trên là
 
 $$
 dZ^{(\ell)}
@@ -27,7 +39,17 @@ dZ^{(\ell)}
   \odot \left(1-(A^{(\ell)})^2\right).
 $$
 
-Lấy đạo hàm theo $W$ của tổng bình phương Frobenius cho $2W$. L2 chỉ tác động lên ma trận trọng số.
+Với mẫu $i$ và nơ-ron $j$, $Z^{(\ell)}_{ij}=\sum_k A^{(\ell-1)}_{ik}W^{(\ell)}_{kj}+b^{(\ell)}_j$. Do đó $\partial Z^{(\ell)}_{ij}/\partial W^{(\ell)}_{kj}=A^{(\ell-1)}_{ik}$ và $\partial Z^{(\ell)}_{ij}/\partial b^{(\ell)}_j=1$. Hai tham số này chỉ ảnh hưởng đến cột $j$ trong $Z^{(\ell)}$. Nhân từng đạo hàm với $dZ^{(\ell)}_{ij}$ rồi cộng theo các mẫu trong mini-batch cho gradient của phần nửa MSE.
+
+$$
+\frac{\partial J_{\mathrm{data}}}{\partial W^{(\ell)}_{kj}}
+=\sum_{i=1}^B dZ^{(\ell)}_{ij}A^{(\ell-1)}_{ik},
+\qquad
+\frac{\partial J_{\mathrm{data}}}{\partial b^{(\ell)}_j}
+=\sum_{i=1}^B dZ^{(\ell)}_{ij}.
+$$
+
+Vì $\lVert W\rVert_F^2=\sum_{k,j}W_{kj}^2$, đạo hàm phần L2 theo $W_{kj}$ là $\lambda W_{kj}/N$. Hàm phạt chỉ phụ thuộc vào trọng số nên đạo hàm phần L2 theo bias bằng 0. Cộng hai phần gradient cho kết quả
 
 $$
 dW^{(\ell)} = (A^{(\ell-1)})^\top dZ^{(\ell)} + \frac{\lambda}{N}W^{(\ell)},
@@ -35,7 +57,31 @@ dW^{(\ell)} = (A^{(\ell-1)})^\top dZ^{(\ell)} + \frac{\lambda}{N}W^{(\ell)},
 db^{(\ell)} = \sum_{i=1}^{B} dZ^{(\ell)}_{i,:}.
 $$
 
-Hệ số $1/B$ đã có trong gradient tầng ra. Mỗi bước cập nhật trừ learning rate nhân với gradient tương ứng khỏi $W$ và $b$.
+Hệ số $1/B$ đã có trong gradient tầng ra. Với learning rate $\eta$, bước cập nhật $W \gets W-\eta\,dW$ tương đương với $W \gets (1-\eta\lambda/N)W-\eta\,\partial J_{\mathrm{data}}/\partial W$. Khi bật L2 với các siêu tham số trong thí nghiệm, hệ số $1-\eta\lambda/N$ nằm giữa 0 và 1 nên làm co trọng số ở mỗi bước cập nhật.
+
+### Mã giả huấn luyện bằng Gradient Descent trên mini-batch
+
+```text
+Khởi tạo W bằng Xavier và b bằng 0
+Đặt λ = 0 nếu tắt L2
+Khởi tạo loss tốt nhất và mốc patience bằng +∞, bộ đếm bằng 0
+Với mỗi epoch trong ngân sách huấn luyện:
+    Xáo trộn chỉ mục Train và chia thành các mini-batch
+    Với mỗi mini-batch:
+        Lan truyền tiến để lấy dự đoán và lưu các kích hoạt
+        Tính dZ ở tầng ra từ sai số dự đoán
+        Lan truyền ngược để tính dW và db cho mọi tầng
+        Cập nhật đồng thời W ← W − η·dW và b ← b − η·db
+    Ghi nửa MSE trên toàn bộ Train và Validation
+    Nếu bật Early Stopping:
+        Nếu Validation Loss đạt cực tiểu mới, sao chép W, b và ghi epoch
+        Nếu mức giảm so với mốc patience lớn hơn min_delta:
+            Đặt mốc bằng Validation Loss hiện tại và đặt bộ đếm về 0
+        Nếu không, tăng bộ đếm thêm 1
+        Nếu bộ đếm đạt patience, dừng vòng lặp epoch
+Nếu bật Early Stopping, khôi phục W và b tại cực tiểu Validation Loss
+Trả về tham số và lịch sử loss
+```
 
 ## Thiết kế thí nghiệm
 
@@ -71,6 +117,17 @@ Bảng ghi trung bình ± độ lệch chuẩn mẫu qua các seed 42, 7, 13, 21
 Ở seed 42, Validation Loss chọn $\lambda=1$. FNN cơ bản đạt Validation Loss thấp nhất tại epoch 888 và tiếp tục huấn luyện đến epoch 2.500. Khi áp dụng Early Stopping, mô hình dừng ở epoch 1.038 và khôi phục epoch 888. Khoảng cách Validation–Train giảm từ 0.07344 xuống 0.04358 và Test RMSE giảm từ 5.3194 xuống 5.2817 MPa. Test MAE tăng từ 3.5506 lên 3.7419 MPa.
 
 Qua năm seed, FNN cơ bản có Test RMSE trung bình thấp nhất (5.2304 MPa) và Test MAE trung bình thấp nhất (3.6376 MPa). Với kiến trúc, learning rate, số epoch và lưới $\lambda$ đã dùng, cả ba cấu hình có ES hoặc L2 đều có Test RMSE trung bình cao hơn FNN cơ bản. Xét từng lần chia, Test RMSE thấp hơn FNN cơ bản ở 2/5 seed với ES và ở 1/5 seed với L2. Lượt seed 42 cho thấy ES giảm nhẹ RMSE nhưng tăng MAE, nên kết quả phụ thuộc vào lần chia và metric. Validation RMSE trung bình thấp nhất thuộc về FNN + L2 và là kết quả mô tả trên tập đã dùng để chọn $\lambda$.
+
+### Biểu đồ so sánh bốn cấu hình
+
+Từ thư mục gốc của repo, chạy lệnh sau để tái tạo các biểu đồ của seed 42 và bảng thống kê năm seed.
+
+```sh
+cd cau1
+python fnn_concrete.py --data data/concrete.csv --five-seeds --output fnn_results
+```
+
+Chèn `cau1/fnn_results/loss_curves.png` ngay sau bảng kết quả trong bản Word/PDF để minh họa diễn biến Train và Validation Loss của bốn cấu hình. Các đường dọc đánh dấu epoch của bộ trọng số được khôi phục ở hai cấu hình có Early Stopping. Đặt `cau1/fnn_results/test_metrics.png` kế tiếp để so sánh MSE, RMSE và MAE trên cùng tập Test ở seed 42. Ghi seed trong chú thích hai hình để phân biệt với các giá trị trung bình qua năm seed trong bảng.
 
 ## Kiểm tra biên lưới L2
 

@@ -95,15 +95,16 @@ def plot_mistakes(mistakes, data, name, destination):
 def plot_comparison(comparison, destination):
     """So sánh điểm Test và loss trên hai thang đo riêng."""
     fig, (scores, loss) = plt.subplots(1, 2, figsize=(10, 4), layout="constrained")
-    colors = ["#4c78a8", "#f58518"]
+    colors = ["#4c78a8", "#54a24b", "#f58518"][:len(comparison)]
     points = comparison.set_index("model")[["test_accuracy", "macro_f1"]]
     points.rename(columns={"test_accuracy": "Accuracy", "macro_f1": "Macro F1"}).T.plot.bar(
         ax=scores, rot=0, ylim=(0, 1), title="Accuracy và macro F1 trên Test", color=colors,
     )
-    scores.legend(loc="upper center", bbox_to_anchor=(0.5, -0.10), ncol=2)
+    scores.legend(loc="upper center", bbox_to_anchor=(0.5, -0.10), fontsize=8)
     for bars in scores.containers:
         scores.bar_label(bars, fmt="%.3f", padding=3, fontsize=8)
     losses = loss.bar(comparison["model"], comparison["test_loss"], color=colors)
+    loss.tick_params(axis="x", labelrotation=15, labelsize=8)
     loss.set(title="Cross-entropy trên Test", ylabel="Loss")
     loss.set_ylim(0, comparison["test_loss"].max() * 1.15)
     loss.bar_label(losses, fmt="%.3f", padding=3, fontsize=8)
