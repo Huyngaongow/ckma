@@ -24,10 +24,7 @@ LEARNING_RATE = 0.035
 PATIENCE = 150
 MIN_DELTA = 1e-5
 L2_CANDIDATES = (0.1, 1.0, 5.0, 20.0)
-DATA_URL = (
-    "https://raw.githubusercontent.com/stedy/Machine-Learning-with-R-datasets/"
-    "ff933238d9c30da179b7e3ad4b6ca938d67efc53/concrete.csv"
-)
+DEFAULT_DATA = Path(__file__).resolve().parent / "data" / "concrete.csv"
 COLUMNS = (
     "cement", "slag", "ash", "water", "superplastic",
     "coarseagg", "fineagg", "age", "strength",
@@ -165,20 +162,20 @@ def gradient_check(x_train, y_train, seed):
 
 def load_data(csv_path):
     """Đọc CSV UCI, báo cáo và loại bỏ giá trị thiếu hoặc dòng trùng."""
-    if csv_path is None and Path("concrete.csv").is_file():
-        csv_path = Path("concrete.csv")
-    source = csv_path if csv_path is not None else DATA_URL
     try:
-        df = pd.read_csv(source, sep=None, engine="python")
+        df = pd.read_csv(csv_path, sep=None, engine="python")
     except OSError as exc:
-        raise SystemExit(f"Không đọc được {source}. Hãy dùng --data concrete.csv.") from exc
+        raise SystemExit(
+            f"Không đọc được {csv_path}. Xem README.md để chuẩn bị CSV từ UCI."
+        ) from exc
     if df.shape[1] != len(COLUMNS):
         raise ValueError("CSV cần có tiêu đề, 8 cột đầu vào và cường độ nén ở cột cuối.")
     df.columns = COLUMNS
     df = df.apply(pd.to_numeric, errors="raise").replace([np.inf, -np.inf], np.nan)
-    print(f"Dữ liệu {source} | {len(df)} dòng | thiếu/không hữu hạn: "
+    print(f"Dữ liệu {csv_path} | {len(df)} dòng | thiếu/không hữu hạn: "
           f"{df.isna().sum().sum()} ô | trùng: {df.duplicated().sum()} dòng")
     df = df.dropna().drop_duplicates()
+    print(f"Số mẫu sau làm sạch: {len(df)}")
     return df.iloc[:, :-1].to_numpy(dtype=np.float64), df[["strength"]].to_numpy(dtype=np.float64)
 
 
@@ -303,7 +300,8 @@ def experiment(splits, y_scaler, seed, output=None):
 def main():
     """Chạy gradient check và thí nghiệm một seed hoặc năm seed."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--data", type=Path, help="CSV cục bộ của bộ Concrete UCI")
+    parser.add_argument("--data", type=Path, default=DEFAULT_DATA,
+                        help="CSV cục bộ của bộ Concrete UCI (mặc định: data/concrete.csv cạnh script)")
     parser.add_argument("--output", type=Path, default=Path("fnn_results"))
     parser.add_argument("--five-seeds", action="store_true", help="Báo cáo thêm thống kê 5 seed")
     args = parser.parse_args()
