@@ -39,9 +39,13 @@ Hệ số $1/B$ đã có trong gradient tầng ra. Mỗi bước cập nhật tr
 
 ## Thiết kế thí nghiệm
 
-Trong mỗi seed, bốn cấu hình dùng cùng tập chia, cùng tham số khởi tạo và cùng thứ tự xáo trộn mini-batch. FNN cơ bản và FNN + L2 chạy đủ 2.500 epoch. Hai cấu hình Early Stopping dùng `patience=150`, `min_delta=1e-5` và khôi phục bộ tham số của epoch có Validation Loss thấp nhất.
+Trong mỗi seed, bốn cấu hình dùng cùng tập chia, cùng tham số khởi tạo và cùng thứ tự xáo trộn mini-batch. Kiến trúc `(64, 32)`, learning rate `0.035` và ngân sách 2.500 epoch được ấn định trước. FNN cơ bản và FNN + L2 chạy đủ ngân sách này.
 
-Chương trình chọn một $\lambda$ từ $\{0.1, 1, 5, 20\}$ theo Validation Loss tại epoch cuối của các lượt chạy L2 cố định, rồi dùng chung giá trị đó cho hai cấu hình có L2. Đường loss Train và Validation dùng nửa MSE thuần trên $y$ chuẩn hóa. Bảng metric dùng dự đoán đã đổi về thang gốc bằng `inverse_transform`. MSE được tính theo MPa², còn RMSE và MAE theo MPa. Mỗi mô hình cuối dự đoán Test một lần trong mỗi seed.
+Early Stopping giữ hai mốc riêng. Bộ đếm `patience` về 0 khi Validation Loss giảm **hơn** `min_delta=1e-5` so với mốc của lần đặt lại gần nhất. Lần đặt lại đó cũng cập nhật mốc tham chiếu. Nếu có 150 epoch liên tiếp chưa đạt mức giảm này, huấn luyện dừng. Song song, chương trình lưu bản sao sâu của trọng số và bias mỗi khi Validation Loss đạt cực tiểu mới, kể cả khi mức giảm chưa đủ để đặt lại bộ đếm. Mô hình cuối khôi phục bản sao ở cực tiểu trong các epoch đã chạy.
+
+Chương trình chọn một $\lambda$ từ $\{0.1, 1, 5, 20\}$ theo Validation Loss tại epoch cuối của các lượt chạy L2 cố định, rồi dùng chung giá trị đó cho hai cấu hình có L2. Đường loss Train và Validation dùng nửa MSE thuần trên $y$ chuẩn hóa. Bảng metric dùng dự đoán đã đổi về thang gốc bằng `inverse_transform`. MSE được tính theo MPa², còn RMSE và MAE theo MPa.
+
+Các số Validation được báo cáo để mô tả quá trình chọn $\lambda$ và checkpoint. Vì cùng tập này được dùng để chọn mô hình, các số đó có thể lạc quan. Các nhận xét về khả năng tổng quát hóa dựa trên Test, được giữ riêng trong mỗi seed. Mỗi mô hình cuối dự đoán Test một lần trong mỗi seed.
 
 ## Kết quả
 
@@ -66,4 +70,26 @@ Bảng ghi trung bình ± độ lệch chuẩn mẫu qua các seed 42, 7, 13, 21
 
 Ở seed 42, Validation Loss chọn $\lambda=1$. FNN cơ bản đạt Validation Loss thấp nhất tại epoch 888 và tiếp tục huấn luyện đến epoch 2.500. Khi áp dụng Early Stopping, mô hình dừng ở epoch 1.038 và khôi phục epoch 888. Khoảng cách Validation–Train giảm từ 0.07344 xuống 0.04358 và Test RMSE giảm từ 5.3194 xuống 5.2817 MPa. Test MAE tăng từ 3.5506 lên 3.7419 MPa.
 
-Qua năm seed, FNN + L2 có Validation RMSE trung bình thấp nhất, còn FNN cơ bản có Test RMSE và MAE trung bình thấp nhất. Mức cải thiện quan sát được phụ thuộc vào cách chia dữ liệu và metric. Bảng Test dùng để so sánh sau huấn luyện. Việc chọn $\lambda$ và epoch dùng Validation.
+Qua năm seed, FNN cơ bản có Test RMSE trung bình thấp nhất (5.2304 MPa) và Test MAE trung bình thấp nhất (3.6376 MPa). Với kiến trúc, learning rate, số epoch và lưới $\lambda$ đã dùng, cả ba cấu hình có ES hoặc L2 đều có Test RMSE trung bình cao hơn FNN cơ bản. Xét từng lần chia, Test RMSE thấp hơn FNN cơ bản ở 2/5 seed với ES và ở 1/5 seed với L2. Lượt seed 42 cho thấy ES giảm nhẹ RMSE nhưng tăng MAE, nên kết quả phụ thuộc vào lần chia và metric. Validation RMSE trung bình thấp nhất thuộc về FNN + L2 và là kết quả mô tả trên tập đã dùng để chọn $\lambda$.
+
+## Kiểm tra biên lưới L2
+
+Lưới ban đầu chọn $\lambda=0.1$, giá trị nhỏ nhất, ở ba trong năm seed (7, 21 và 73). Để kiểm tra độ nhạy với biên dưới, chạy thêm $\lambda\in\{0, 0.001, 0.01, 0.03\}$ trên cùng cách chia, cùng khởi tạo và đủ 2.500 epoch. $\lambda=0$ là đối chứng FNN cơ bản. Bảng so sánh nửa MSE Validation ở epoch cuối. Cột lưới mở rộng xét cả bốn giá trị chạy thêm và bốn giá trị ban đầu.
+
+| Seed | $\lambda$ tốt nhất, lưới ban đầu | Val Loss, lưới ban đầu | $\lambda$ tốt nhất, lưới mở rộng | Val Loss, lưới mở rộng |
+| ---: | ---: | ---: | ---: | ---: |
+| 42 | 1 | 0.080797 | 1 | 0.080797 |
+| 7 | 0.1 | 0.046369 | 0.01 | 0.045978 |
+| 13 | 1 | 0.043873 | 1 | 0.043873 |
+| 21 | 0.1 | 0.052737 | 0.1 | 0.052737 |
+| 73 | 0.1 | 0.044500 | 0.1 | 0.044500 |
+
+Chỉ seed 7 đổi lựa chọn khi thử các mức nhỏ hơn. Ở seed này, $\lambda=0.01$ giảm nửa MSE Validation khoảng 0.000391 so với $\lambda=0.1$ và khoảng 0.000018 so với đối chứng $\lambda=0$. Lượt kiểm tra bổ sung chỉ tính metric trên Validation. Bảng Test ở phần trên thuộc thí nghiệm chính với lưới ban đầu.
+
+## Minh họa overfitting khi giảm dữ liệu Train
+
+Ở seed 42, chạy FNN cơ bản với 703 mẫu Train và với 175 mẫu lấy từ cùng tập Train theo 175 chỉ số đầu của `np.random.default_rng(42).permutation(703)`. Hai lượt có cùng 151 mẫu Validation, kiến trúc, khởi tạo, learning rate và batch size. Mỗi scaler được fit trên số mẫu Train thực sự dùng. Trục ngang là số lần cập nhật tham số, vì một epoch có 11 mini-batch ở lượt 703 mẫu và 3 mini-batch ở lượt 175 mẫu. Hai lượt kết thúc lần lượt ở bước 27.500 và 27.498. RMSE được quy về MPa để so sánh giữa hai cách chuẩn hóa.
+
+![RMSE Train và Validation với 703 và 175 mẫu Train](cau1_overfit.png)
+
+Với 175 mẫu, Validation RMSE đạt cực tiểu 7.7896 MPa tại bước 1.977 rồi tăng lên 8.6918 MPa, trong khi Train RMSE giảm từ 4.3710 xuống 1.9847 MPa. Với 703 mẫu, cực tiểu xảy ra muộn hơn tại bước 9.768, rồi Validation RMSE tăng từ 6.0400 lên 6.7282 MPa. Khoảng cách Validation–Train cuối lượt rõ hơn với 175 mẫu (6.71 MPa so với 3.94 MPa). Đây là minh họa đường cong học ở một seed. Thí nghiệm phụ chỉ tính metric trên Train và Validation.
