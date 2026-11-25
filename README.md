@@ -1,8 +1,7 @@
 # ckma
 
-- `cau1/` chứa bài làm câu 1.
+- `cau1/` chứa mã nguồn, dữ liệu và tài liệu bổ trợ cho Câu 1.
 - [`cau2/`](cau2/README.md) chứa Câu 2a, hướng dẫn chạy ngoại tuyến và thí nghiệm đối chứng FNN–CNN.
-- `report/` chứa báo cáo.
 
 ## Chạy Câu 1
 
@@ -23,4 +22,4 @@ Bảng kết quả theo từng seed và bảng trung bình ± độ lệch chu�
 
 Để tự lấy dữ liệu từ kho UCI, tải `Concrete_Data.xls` từ trang trên và lưu vào `cau1/data/`. Mở tệp bằng Excel hoặc LibreOffice, xuất trang tính thành CSV UTF-8 có tên `concrete.csv`. Dùng dấu phẩy phân cách cột, dấu chấm thập phân và giữ đủ độ chính xác của các cột số.
 
-Xem nguồn gốc bản XLS trong repo, số dòng trùng, công thức và kết quả tại [báo cáo Câu 1](report/cau1.md).
+Xem nguồn gốc bản XLS trong repo, số dòng trùng, công thức và kết quả tại [báo cáo Câu 1](cau1/report/cau1.md).
