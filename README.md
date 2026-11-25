@@ -1,7 +1,7 @@
 # ckma
 
 - `cau1/` chứa bài làm câu 1.
-- `cau2/` chứa bài làm câu 2.
+- [`cau2/`](cau2/README.md) chứa Câu 2a, hướng dẫn chạy ngoại tuyến và thí nghiệm đối chứng FNN–CNN.
 - `report/` chứa báo cáo.
 
 ## Chạy Câu 1

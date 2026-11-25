@@ -8,7 +8,7 @@ Dùng Python 3.10–3.13. Từ thư mục chứa `main.py`, tạo môi trường
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
-python main.py --deterministic
+python main.py --data-dir du-lieu --offline --deterministic
 ```
 
 Trên Windows PowerShell, dùng `.venv\Scripts\Activate.ps1` để kích hoạt môi trường. Trên Linux hoặc Windows chỉ có CPU, có thể cài cặp PyTorch CPU trước lệnh cài requirements để tải ít hơn:
@@ -19,10 +19,11 @@ python -m pip install torch==2.7.1 torchvision==0.22.1 --index-url https://downl
 
 Mặc định chương trình ưu tiên CUDA, sau đó đến MPS trên macOS và cuối cùng là CPU. Có thể buộc dùng CPU với `--device cpu` và chỉnh số luồng với `--threads`. Với `--deterministic`, hãy giữ nguyên seed, thiết bị, phiên bản thư viện và số luồng khi tái lập. Phần kiểm chứng được thực hiện trên CPU.
 
-Chương trình ưu tiên dữ liệu cục bộ và tải từ mirror HTTPS của Fashion-MNIST nếu thiếu. Khi máy chạy không có mạng, chép bốn tệp [Fashion-MNIST chính thức](https://github.com/zalandoresearch/fashion-mnist/tree/master/data/fashion) vào cấu trúc sau. Có thể dùng tệp `.gz` hoặc tệp IDX đã giải nén có cùng tên bỏ đuôi `.gz`.
+Repo kèm bốn tệp `.gz` chính thức của Fashion-MNIST để chạy ngoại tuyến sau khi đã cài thư viện. Chương trình tự giải nén vào thư mục `raw/` khi cần. Dung lượng bốn tệp nén khoảng 31 MB. [Dữ liệu gốc](https://github.com/zalandoresearch/fashion-mnist/tree/master/data/fashion) · [Giấy phép MIT đi kèm](du-lieu/LICENSE)
 
 ```text
 du-lieu/
+├── LICENSE
 └── FashionMNIST/
     └── raw/
         ├── train-images-idx3-ubyte.gz
@@ -32,14 +33,14 @@ du-lieu/
 ```
 
 ```bash
-python main.py --data-dir ./du-lieu --offline --deterministic
+python main.py --data-dir du-lieu --offline --device cpu --threads 2 --deterministic
 ```
 
 Chạy riêng một cấu hình để kiểm tra công tắc. Tham số `--image` nhận một ảnh JPEG/PNG bất kỳ và dùng mô hình vừa huấn luyện để in top 3. Ảnh nên có bố cục giống Fashion-MNIST, với một vật thể ở giữa trên nền tối.
 
 ```bash
-python main.py --single --dropout --no-augmentation --epochs 1 --deterministic --output-dir outputs/quick
-python main.py --deterministic --image anh_minh_hoa.png
+python main.py --data-dir du-lieu --offline --single --dropout --no-augmentation --epochs 1 --deterministic --output-dir outputs/quick
+python main.py --data-dir du-lieu --offline --deterministic --image anh_minh_hoa.png
 ```
 
 Để khảo sát ảnh hưởng của phép chia dữ liệu và ngân sách huấn luyện, chạy lại toàn bộ bốn cấu hình cùng Random Search với mỗi seed trong một thư mục kết quả riêng.
@@ -94,8 +95,9 @@ Cấu hình thắng trên Validation dùng learning rate 0,002, dropout rate 0,4
 | `evaluate.py` | Đánh giá Test, biểu đồ và suy luận top 3 |
 | `extension.py` | Không gian siêu tham số và Random Search |
 | `main.py` | CLI, điều phối thí nghiệm và xuất kết quả |
+| `fnn_baseline.py` | Tự cài FNN bằng NumPy và đo đối chứng với CNN cơ sở |
 
-| Tệp sinh trong `outputs/` | Nội dung |
+| Tệp trong `outputs/` | Nội dung |
 |---|---|
 | `summary.csv` | Năm mô hình, siêu tham số, kết quả cuối và khoảng cách accuracy |
 | `history.csv`, `learning_curves.png` | Lịch sử theo epoch và hình so sánh bốn cấu hình chính |
@@ -103,6 +105,8 @@ Cấu hình thắng trên Validation dùng learning rate 0,002, dropout rate 0,4
 | `random_search_trials.csv` | Siêu tham số, kết quả Validation và cờ chọn của 8–12 lượt thử |
 | `extension_comparison.csv`, `extension_comparison.png` | So sánh CNN cơ sở, cấu hình kết hợp và Random Search. Kết quả 10 epoch có sẵn trong repo trình bày hai mô hình cơ sở và Random Search, với đủ ba cấu hình trong `summary.csv`. |
 | `split_indices.npz` | Chỉ mục Train và Validation trong tập Train chính thức |
+| `fnn_comparison.csv` | Kết quả tham chiếu của phép đo đối chứng FNN–CNN |
+| `demo_top3.md` | Lệnh tái lập và trích log suy luận một ảnh sau 1 epoch |
 
 ## Kiến trúc và nguyên lý CNN
 
@@ -131,7 +135,13 @@ Bộ lọc $o$ cộng các tích trên toàn bộ kênh đầu vào và cửa s�
 
 Một mini-batch huấn luyện gồm 64 ảnh xám $28\times28$ và 64 nhãn nguyên. Nhãn `T-shirt/top` có chỉ mục 0. Chuẩn hóa ảnh bằng thống kê Train rồi đưa qua hai khối Conv–ReLU–MaxPool và các lớp FC. Đầu ra là ma trận $64\times10$. Loss mini-batch là trung bình cross-entropy theo nhãn thật. Chẳng hạn, một ảnh `T-shirt/top` có xác suất softmax lớp 0 bằng 0,8 sẽ đóng góp $-\ln(0.8)\approx0.2231$ vào tổng loss. Đạo hàm theo logit lớp $j$ của ảnh, trước khi lấy trung bình batch, là $p_j-\mathbf{1}[j=t]$. PyTorch lan truyền gradient qua lớp FC, qua vị trí cực đại của pooling, qua ReLU và cộng đóng góp từ các vị trí dùng chung bộ lọc. Adam dùng gradient để cập nhật tham số.
 
-Khi suy luận, chuẩn hóa một ảnh theo cùng thống kê, chạy mạng ở chế độ đánh giá và xếp 10 xác suất softmax để lấy top 3. Trong một lần chạy kiểm tra riêng với một epoch, ảnh Validation có nhãn `T-shirt/top` được mô hình Random Search gán xác suất 91,83% cho `T-shirt/top`, 7,93% cho `Shirt` và 0,17% cho `Pullover`. Dự đoán top 1 là `T-shirt/top`.
+Khi suy luận, chuẩn hóa một ảnh theo cùng thống kê, chạy mạng ở chế độ đánh giá và xếp 10 xác suất softmax để lấy top 3. Trong một lần chạy kiểm tra riêng với một epoch, ảnh Validation có nhãn `T-shirt/top` được mô hình Random Search gán xác suất 91,83% cho `T-shirt/top`, 7,93% cho `Shirt` và 0,17% cho `Pullover`. Dự đoán top 1 là `T-shirt/top`. [Log minh họa và kết quả chạy lại](outputs/demo_top3.md)
+
+Chạy lại quy trình Random Search một epoch từ thư mục `cau2` bằng lệnh sau. Chương trình dùng mô hình thắng để in top 3 trên ảnh Validation minh họa. Xác suất có thể chênh lệch giữa các môi trường.
+
+```bash
+python main.py --data-dir du-lieu --offline --device cpu --threads 2 --seed 42 --epochs 1 --trials 8 --deterministic --output-dir outputs_demo
+```
 
 ### So sánh CNN với FNN trên bài toán ảnh
 
@@ -141,7 +151,24 @@ Khi suy luận, chuẩn hóa một ảnh theo cùng thống kê, chạy mạng �
 | Ưu điểm | Chia sẻ tham số giúp học họa tiết và cạnh xuất hiện ở nhiều vị trí. Pooling giảm kích thước và độ nhạy với dịch chuyển nhỏ. | Kết nối trực tiếp mọi phần tử đầu vào. Kiến trúc đơn giản và phù hợp khi đầu vào là véc-tơ đặc trưng có kích thước nhỏ. |
 | Hạn chế và chi phí | Pooling có thể làm mất chi tiết. Chi phí tính toán phụ thuộc kích thước bản đồ đặc trưng, số bộ lọc và cấu hình triển khai. | Lớp dày đặc lớn tăng số tham số theo số pixel và kích thước lớp ẩn. Mạng phải học quan hệ không gian và đặc trưng ở các vị trí từ dữ liệu. |
 
-Ví dụ, lớp tích chập đầu của CNN dùng $24(1\cdot3\cdot3+1)=240$ tham số để sinh bản đồ $24\times28\times28$. Một lớp dày đặc nối 784 pixel với cùng số phần tử đầu ra cần $(784+1)\cdot24\cdot28\cdot28=14.770.560$ tham số. Đây là so sánh ở cùng kích thước đầu ra của một lớp. Đo accuracy và thời gian giữa hai mô hình cần một thí nghiệm trên cùng dữ liệu, cách chia và ngân sách huấn luyện.
+Ví dụ, lớp tích chập đầu của CNN dùng $24(1\cdot3\cdot3+1)=240$ tham số để sinh bản đồ $24\times28\times28$. Một lớp dày đặc nối 784 pixel với cùng số phần tử đầu ra cần $(784+1)\cdot24\cdot28\cdot28=14.770.560$ tham số. Ví dụ này so sánh hai lớp có cùng số phần tử đầu ra. Bảng dưới đo trực tiếp hai mô hình hoàn chỉnh có số tham số gần nhau.
+
+#### Đối chứng thực nghiệm trên cùng phép chia
+
+`fnn_baseline.py` chạy FNN `784 → 384 → 10` với ReLU ở tầng ẩn và CNN cơ sở trong cùng chương trình. FNN tự tính lan truyền tiến, cross-entropy, gradient và cập nhật Adam bằng NumPy. Hai mô hình dùng cùng 5.000 ảnh Train, 5.000 ảnh Validation, 10.000 ảnh Test, seed 42, batch size 64, 10 epoch và Adam với learning rate 0,001. Cả hai huấn luyện trên ảnh đã chuẩn hóa. Chạy từ thư mục `cau2`.
+
+```bash
+python fnn_baseline.py --data-dir du-lieu --offline --seed 42 --epochs 10 --threads 2 --output-dir outputs/fnn_comparison
+```
+
+Kết quả tham chiếu đo trên Intel Xeon Platinum 8573C với 2 luồng, NumPy 2.5.4 và PyTorch 2.7.1+cpu. Thời gian gồm khởi tạo mô hình, cập nhật tham số và đo Train/Validation sau mỗi epoch. Việc tải và chuẩn hóa dữ liệu, đánh giá Test và ghi CSV diễn ra ngoài khoảng đo. [Kết quả và cấu hình lần chạy](outputs/fnn_comparison.csv)
+
+| Mô hình | Tham số | Validation accuracy | Test accuracy | Thời gian huấn luyện (giây) |
+|---|---:|---:|---:|---:|
+| FNN NumPy | 305.290 | 84,30% | 83,07% | 1,85 |
+| CNN PyTorch | 313.130 | 87,70% | 87,03% | 17,48 |
+
+Trong lần đo đối chứng này, CNN đạt Test accuracy cao hơn **3,96 điểm phần trăm** với số tham số gần FNN. FNN hoàn tất huấn luyện nhanh hơn với hai bản cài đặt và phần cứng đang dùng. Thời gian ở bảng này mô tả một lần chạy. Bộ số liệu dùng để phân tích Dropout, tăng cường dữ liệu và Random Search được trình bày riêng ở mục kết quả tham chiếu 10 epoch. [Bộ số liệu của bốn cấu hình CNN và Random Search](outputs/summary.csv)
 
 ## Danh sách tự kiểm tra
 
@@ -153,5 +180,5 @@ Ví dụ, lớp tích chập đầu của CNN dùng $24(1\cdot3\cdot3+1)=240$ th
 - [x] 6. PNG đường cong Train/Validation, confusion matrix và ảnh dự đoán sai.
 - [x] 7. Random Search 8–12 lượt dùng Validation, huấn luyện lại cấu hình thắng, so sánh với cơ sở bằng bảng và PNG.
 - [x] 8. Hàm dự đoán một ảnh và in top 3 xác suất.
-- [x] Cấu trúc sáu mô-đun, siêu tham số đầu tệp, requirements, hướng dẫn chạy, seed và deterministic.
+- [x] Các mô-đun có vai trò riêng. Có siêu tham số, requirements, hướng dẫn chạy, seed và deterministic.
 - [x] Kết quả tạo từ dữ liệu thật bằng chương trình, in bảng pandas và lưu CSV.
