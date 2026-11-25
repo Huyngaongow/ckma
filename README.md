@@ -1,7 +1,7 @@
 # ckma
 
 - `cau1/` chứa mã nguồn, dữ liệu và tài liệu bổ trợ cho Câu 1.
-- [`cau2/`](cau2/README.md) chứa Câu 2a, hướng dẫn chạy ngoại tuyến và thí nghiệm đối chứng FNN–CNN.
+- `cau2/` chứa mã nguồn, dữ liệu và kết quả thực nghiệm của Câu 2a.
 
 ## Chạy Câu 1
 
@@ -28,7 +28,7 @@ Xem nguồn gốc bản XLS trong repo, số dòng trùng, công thức và kế
 
 Câu 2a dùng CNN viết bằng PyTorch để phân loại ảnh Fashion-MNIST. Thực nghiệm so sánh bốn cấu hình gồm CNN cơ sở, Dropout, tăng cường dữ liệu và kết hợp cả hai. Phần mở rộng dùng Random Search để tinh chỉnh cấu hình kết hợp. [Kết quả tham chiếu](cau2/outputs/summary.csv)
 
-Dùng Python 3.10–3.13. Từ thư mục gốc của repo, chạy các lệnh sau trong môi trường Python đã chuẩn bị.
+Dùng Python 3.10–3.13. Chạy từ thư mục gốc của repo.
 
 ```sh
 cd cau2

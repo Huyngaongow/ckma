@@ -8,7 +8,7 @@ Dùng Python 3.10–3.13. Từ thư mục chứa `main.py`, tạo môi trường
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
-python main.py --data-dir du-lieu --offline --deterministic
+python main.py --data-dir du-lieu --offline --device cpu --threads 2 --seed 42 --deterministic --output-dir outputs_run
 ```
 
 Trên Windows PowerShell, dùng `.venv\Scripts\Activate.ps1` để kích hoạt môi trường. Trên Linux hoặc Windows chỉ có CPU, có thể cài cặp PyTorch CPU trước lệnh cài requirements để tải ít hơn:
@@ -32,15 +32,11 @@ du-lieu/
         └── t10k-labels-idx1-ubyte.gz
 ```
 
-```bash
-python main.py --data-dir du-lieu --offline --device cpu --threads 2 --deterministic
-```
-
 Chạy riêng một cấu hình để kiểm tra công tắc. Tham số `--image` nhận một ảnh JPEG/PNG bất kỳ và dùng mô hình vừa huấn luyện để in top 3. Ảnh nên có bố cục giống Fashion-MNIST, với một vật thể ở giữa trên nền tối.
 
 ```bash
 python main.py --data-dir du-lieu --offline --single --dropout --no-augmentation --epochs 1 --deterministic --output-dir outputs/quick
-python main.py --data-dir du-lieu --offline --deterministic --image anh_minh_hoa.png
+python main.py --data-dir du-lieu --offline --deterministic --image anh_minh_hoa.png --output-dir outputs_run/image
 ```
 
 Để khảo sát ảnh hưởng của phép chia dữ liệu và ngân sách huấn luyện, chạy lại toàn bộ bốn cấu hình cùng Random Search với mỗi seed trong một thư mục kết quả riêng.
@@ -103,10 +99,11 @@ Cấu hình thắng trên Validation dùng learning rate 0,002, dropout rate 0,4
 | `history.csv`, `learning_curves.png` | Lịch sử theo epoch và hình so sánh bốn cấu hình chính |
 | `confusion_*.png`, `errors_*.png` | Ma trận nhầm lẫn và tối đa 12 lỗi phân loại cho mỗi mô hình |
 | `random_search_trials.csv` | Siêu tham số, kết quả Validation và cờ chọn của 8–12 lượt thử |
-| `extension_comparison.csv`, `extension_comparison.png` | So sánh CNN cơ sở, cấu hình kết hợp và Random Search. Kết quả 10 epoch có sẵn trong repo trình bày hai mô hình cơ sở và Random Search, với đủ ba cấu hình trong `summary.csv`. |
 | `split_indices.npz` | Chỉ mục Train và Validation trong tập Train chính thức |
 | `fnn_comparison.csv` | Kết quả tham chiếu của phép đo đối chứng FNN–CNN |
 | `demo_top3.md` | Lệnh tái lập và trích log suy luận một ảnh sau 1 epoch |
+
+Ba mốc đối chiếu trong `summary.csv` gồm CNN cơ sở, cấu hình kết hợp trước tinh chỉnh và cấu hình sau Random Search. Khi chạy toàn bộ thí nghiệm, chương trình tạo thêm `extension_comparison.csv` và `extension_comparison.png` từ ba mốc này trong thư mục đầu ra.
 
 ## Kiến trúc và nguyên lý CNN
 
