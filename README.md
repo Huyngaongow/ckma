@@ -30,6 +30,8 @@ python cau2/main.py --data-dir cau2/du-lieu --offline --device cpu --threads 2 -
 
 Lệnh so sánh CNN cơ sở, Dropout, tăng cường dữ liệu và cấu hình kết hợp, sau đó tinh chỉnh cấu hình kết hợp bằng Random Search. Bốn tệp `.gz` trong `cau2/du-lieu/FashionMNIST/raw/` được tự giải nén khi chạy. Sau khi cài thư viện, chương trình huấn luyện ngoại tuyến và ghi kết quả mới vào `cau2/outputs_run/`. [Dữ liệu gốc](https://github.com/zalandoresearch/fashion-mnist/tree/master/data/fashion) · [Giấy phép dữ liệu](cau2/du-lieu/LICENSE)
 
+Khi có mạng, bỏ `--offline` để chương trình tự tải Fashion-MNIST nếu thiếu dữ liệu cục bộ.
+
 [Kết quả tham chiếu](cau2/outputs/summary.csv) · [Minh họa Top 3 và lệnh chạy lại](cau2/outputs/demo_top3.md)
 
 ### Đối chứng FNN–CNN
